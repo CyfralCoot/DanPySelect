@@ -5,7 +5,7 @@ import glob
 import os
 from io import StringIO
 
-def get_normalized_stringio(filepath,del_iters=4):
+def get_normalized_stringio(filepath, del_iters=4):
     """Reads file and outputs string io to feed into pandas"""
     with open(filepath, 'r') as file:
         mystring = file.read()
@@ -13,14 +13,14 @@ def get_normalized_stringio(filepath,del_iters=4):
         mystring = mystring.replace('  ', ' ')
     return StringIO(mystring)
 
-def read_file(filepath,names=['x','y','type']):
+def read_file(filepath, names=['x','y','type']):
     data = get_normalized_stringio(filepath)
     df = pd.read_csv(data, delimiter=' ')
     df.dropna(inplace=True,axis=1,how='all')
     df.rename(inplace=True,columns={df.columns[0]:names[0],df.columns[1]:names[1],df.columns[2]:names[2]})
     return df
 
-def read_final_file(filepath,names=['x','y']):
+def read_final_file(filepath, names=['x','y']):
     """read trace.dat"""
     data = get_normalized_stringio(filepath, 3)
     
@@ -29,18 +29,17 @@ def read_final_file(filepath,names=['x','y']):
     df.rename(inplace=True,columns={df.columns[0]:names[0],df.columns[1]:names[1]})
     return df
 
-def plot(ooo_path='C://Users//Spreading//Desktop//ООО//ООО//Select//',pendant=True,dif_types=True):
+def plot(ooo_path='C://Users//Spreading//Desktop//ООО//ООО//Select//', pendant=True, dif_types=True, save=False, metadata=None):
     trace_file_paths = glob.glob(ooo_path + 'Trace*.dat')
     trace_file_paths.sort(key=lambda x: os.path.getmtime(x))
     if 'trace.dat' in trace_file_paths[-1]:#If the latest file is trace.dat
-        print('Last file is trace.dat')
         final_file_path = trace_file_paths[-1]
         trace_file_path = trace_file_paths[-2]
     else:
         final_file_path = None
         trace_file_path = trace_file_paths[-1]
     
-    dot_file_path = trace_file_path.replace('Trace','')
+    dot_file_path = trace_file_path.replace('Trace', '')
     print(trace_file_path)
     print(dot_file_path)
 
@@ -61,8 +60,8 @@ def plot(ooo_path='C://Users//Spreading//Desktop//ООО//ООО//Select//',pend
         line_y = line_slice['y'].iloc[0]
         print(f'Line: {line_y}')
 
-    print(dot_df)
-    print(trace_df)
+    #print(dot_df)
+    #print(trace_df)
 
     if final_file_path is not None:
         try:
@@ -86,10 +85,19 @@ def plot(ooo_path='C://Users//Spreading//Desktop//ООО//ООО//Select//',pend
     plt.figure(figsize=(12,9))
     plt.scatter(x=dot_df['x'], y=dot_df['y'], s=1, c=dot_df['color'])
     plt.plot(np.array(trace_df['x']), np.array(trace_df['y']), c='red', lw=1)
-    plt.suptitle(f'Total points: {n_points}')
+    
+    if metadata:
+        plt.suptitle(metadata)
+    else:
+        plt.suptitle(f'Total points: {n_points}')
+    
     if not pendant:
         plt.axhline(line_y, c='lime', lw=1)
-    plt.show()
+    
+    if save == False:
+        plt.show()
+    else:
+        plt.savefig(save)
 
 if __name__ == '__main__':
-    plot('C://Users//Spreading//Desktop//ООО//ООО//Select//', True)
+    plot('C://ООО//ООО//Select//', True)

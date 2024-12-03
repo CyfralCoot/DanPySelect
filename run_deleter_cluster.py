@@ -89,5 +89,5 @@ def inference(model_path, model_name, df, grid_d=5.2):
     if '2d' in model_name:
         matrix_list = np.expand_dims(matrix_list, axis=-1)
     
-    return model.predict(matrix_list)[:,0]
+    return model.predict(matrix_list, verbose = 0)[:,0]
     

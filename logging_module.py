@@ -1,6 +1,5 @@
 import logging
 import tkinter
-import threading
 from tkinter import scrolledtext
 
 class TextHandler(logging.Handler):

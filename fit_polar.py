@@ -1,7 +1,6 @@
 #Polar coordinates. Succsessful!
 
 import tensorflow as tf
-import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -78,7 +77,7 @@ def model_p(alpha, apex_radius, aspherisity, x_offset, y_offset):
     ro_prime = tf.sqrt(x_prime**2 + y_prime**2)
     return ro_prime
 
-def fit(polar_df,model,num_epochs=600):
+def fit(polar_df, model, num_epochs=600):
     phi_data = tf.constant(polar_df['phi'])
     observed_ro = tf.constant(polar_df['ro'])
 
@@ -102,7 +101,6 @@ def fit(polar_df,model,num_epochs=600):
             loss = mse_loss(phi_data, observed_ro)
         gradients = tape.gradient(loss, [apex_radius, aspherisity, x_offset, y_offset])
         optimizer.apply_gradients(zip(gradients, [apex_radius, aspherisity, x_offset, y_offset]))
-        # Clip the apex_radius to be within a reasonable range, e.g., [0.1, 10.0]
         apex_radius.assign(tf.clip_by_value(apex_radius, 0.01, 10.0))
         return loss
 
@@ -113,8 +111,8 @@ def fit(polar_df,model,num_epochs=600):
             print(f'Epoch {epoch}, Loss: {loss.numpy()}, apex_radius: {apex_radius.numpy().round(6)}, aspherisity: {aspherisity.numpy().round(6)}, offsets: {x_offset.numpy().round(6)}, {y_offset.numpy().round(6)}')
     return loss.numpy(), apex_radius.numpy(), aspherisity.numpy(), x_offset.numpy(), y_offset.numpy()
 
-def process_df(mydf,pendant=False,n_epochs=600):
-    df = mydf.copy()
+def process_df(mydf, pendant=False, n_epochs=600):
+    df = mydf[['x','y']]
     polar_df = prepare_data(df)
     phi_data = tf.constant(polar_df['phi'])
     observed_ro = tf.constant(polar_df['ro'])
