@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import matplotlib
+default_backend = matplotlib.get_backend()
 import matplotlib.pyplot as plt
 import glob
 import os
@@ -29,8 +31,8 @@ def read_final_file(filepath, names=['x','y']):
     df.rename(inplace=True,columns={df.columns[0]:names[0],df.columns[1]:names[1]})
     return df
 
-def plot(ooo_path='C://Users//Spreading//Desktop//ООО//ООО//Select//', pendant=True, dif_types=True, save=False, metadata=None):
-    trace_file_paths = glob.glob(ooo_path + 'Trace*.dat')
+def plot(ooo_path='C://ООО//Select', pendant=True, dif_types=True, save=False, metadata=None):
+    trace_file_paths = glob.glob(os.path.join(ooo_path, 'Trace*.dat'))
     trace_file_paths.sort(key=lambda x: os.path.getmtime(x))
     if 'trace.dat' in trace_file_paths[-1]:#If the latest file is trace.dat
         final_file_path = trace_file_paths[-1]
@@ -82,6 +84,11 @@ def plot(ooo_path='C://Users//Spreading//Desktop//ООО//ООО//Select//', pen
     else:
         dot_df['color'] = 'blue'
 
+    if save:
+        matplotlib.use('Agg')#Disable interactive backend to fix memory leak
+    else:
+        matplotlib.use(default_backend)
+
     plt.figure(figsize=(12,9))
     plt.scatter(x=dot_df['x'], y=dot_df['y'], s=1, c=dot_df['color'])
     plt.plot(np.array(trace_df['x']), np.array(trace_df['y']), c='red', lw=1)
@@ -94,10 +101,10 @@ def plot(ooo_path='C://Users//Spreading//Desktop//ООО//ООО//Select//', pen
     if not pendant:
         plt.axhline(line_y, c='lime', lw=1)
     
-    if save == False:
-        plt.show()
-    else:
+    if save:
         plt.savefig(save)
+    else:
+        plt.show()
 
 if __name__ == '__main__':
-    plot('C://ООО//ООО//Select//', True)
+    plot('C://ООО//Select', True)

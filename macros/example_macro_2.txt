@@ -1,0 +1,6 @@
+load_file
+canny_ed
+mdp dd_cluster127_2d_V2.keras 0.4
+mdp dd_cluster127_2d_V2.keras 0.3
+savepoints
+select trace
