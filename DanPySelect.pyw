@@ -63,7 +63,7 @@ class MyCanvasObject:
         return self.id is not None
 
 class RectangleSelection(MyCanvasObject):
-    def __init__(self, canvas, seltype=True, title=None):
+    def __init__(self, canvas, seltype=True):
         self.canvas = canvas
         self.seltype = seltype
         self.color = 'green' if seltype == True else 'red'
@@ -72,7 +72,6 @@ class RectangleSelection(MyCanvasObject):
         self.cx2 = None
         self.cy1 = None
         self.cy2 = None
-        self.title = title
     
     def image_coords(self, image_delta_x, image_delta_y):
         x1 = self.cx1 + image_delta_x
@@ -101,7 +100,7 @@ class RectangleSelection(MyCanvasObject):
             self.canvas.delete(self.id)
         self.id = self.canvas.create_rectangle(self.cx1, self.cy1, self.cx2, self.cy2, dash=2, outline=self.color)
 
-    def hide_rectangle(self):
+    def hide(self):
         if self.id is not None:
             self.canvas.delete(self.id)
             self.id = None
@@ -110,7 +109,7 @@ class RectangleSelection(MyCanvasObject):
             self.cy1 = None
             self.cy2 = None
 
-    def update_rectangle(self):
+    def update(self):
         if self.id is not None:
             self.canvas.coords(self.id, self.cx1, self.cy1, self.cx2, self.cy2)
     
@@ -123,22 +122,57 @@ class RectangleSelection(MyCanvasObject):
         self.draw_rectangle()
     
     def on_drag(self, event):
-        global cur_x, cur_y
         self.cx2 = event.x
         self.cy2 = event.y
-        self.update_rectangle()
+        self.update()
     
     def on_release(self, event):
         if self.check_coords():
             self.cx1, self.cx2 = sorted([self.cx1, self.cx2])
             self.cy1, self.cy2 = sorted([self.cy1, self.cy2])
         else:
-            self.hide_rectangle()
+            self.hide()
+    
+    def check_if_inside(self, event):
+        """check if the click is inside or outside the rectangle"""
+        if self.id:
+            if (self.cx1 > event.x) ^ (self.cx2 > event.x):# ^ = XOR
+                if (self.cy1 > event.y) ^ (self.cy2 > event.y):
+                    return True
+        return False
+
+class RectangleHandler:
+    def __init__(self, canvas, seltype=True):
+        self.canvas = canvas
+        self.seltype = seltype
+        self.rectangles = []
+    
+    def __bool__(self):
+        self.rectangles = [r for r in self.rectangles if r.visible()]
+        return bool(self.rectangles)
+    
+    def add_rectangle(self, event):
+        new_rectangle = RectangleSelection(self.canvas, self.seltype)
+        new_rectangle.on_click(event)
+        self.rectangles.append(new_rectangle)
+    
+    def on_click(self, event):
+        for rect in self.rectangles:
+            if rect.check_if_inside(event):
+                rect.hide()
+        self.rectangles = [r for r in self.rectangles if r.visible()]
+        self.add_rectangle(event)
+    
+    def on_drag(self, event):
+        self.rectangles[-1].on_drag(event)
+    
+    def on_release(self, event):
+        self.rectangles[-1].on_release(event)
         if batch_operation:
             batch.crop_update()
         else:
-            single.crop_update()
-
+            single.crop_update()        
+    
 class HorizontalLine(MyCanvasObject):
     def __init__(self, canvas, y_pos):
         self.canvas = canvas
@@ -459,7 +493,7 @@ class ManualHandler(MyWindowObject):
         
         tk.Label(self.window, text=self.text, font="Verdana 11").pack()
            
-class PointSelector():
+class PointSelector:
     def __init__(self, frame, canvas):
         self.frame = frame
         self.canvas = canvas
@@ -481,11 +515,11 @@ class PointSelector():
         if self.df is None:
             return
         for index, row in self.df.iterrows():
-            x, y = row['pixel_x'], row['pixel_y']
-            #x += main_image.delta_x
-            #y += main_image.delta_y
+            pixel_x, pixel_y = row['pixel_x'], row['pixel_y']
+            x = pixel_x - main_image.delta_x
+            y = pixel_y# - main_image.delta_y
             point = self.canvas.create_oval(x-1, y-1, x+1, y+1, outline=self.point_color, fill=self.point_color)
-            self.points.append((x, y, point))
+            self.points.append((pixel_x, pixel_y, point))
 
     def find_nearest_point(self, x, y):
         nearest_point = None
@@ -498,8 +532,8 @@ class PointSelector():
         return nearest_point
 
     def set_origin(self, event):
-        self.origin_x = event.x
-        self.origin_y = event.y
+        self.origin_x = event.x + main_image.delta_x
+        self.origin_y = event.y# + main_image.delta_y
         if self.origin_id is not None:
             self.canvas.delete(self.origin_id)
         self.origin_id = self.canvas.create_oval(event.x-3, event.y-3, event.x+3, event.y+3, outline='purple', fill='purple')
@@ -1769,16 +1803,19 @@ def crop_canny_image(canny_image):
     if canny_image is None:
         return None
     
-    if rect_pos.visible():
-        px1, px2, py1, py2 = rect_pos.image_coords(main_image.delta_x, main_image.delta_y)
+    if rect_pos:
         img_array = np.zeros(shape=canny_image.shape, dtype=canny_image.dtype)
-        img_array[py1:py2, px1:px2] = canny_image[py1:py2, px1:px2]
+        for rect in rect_pos.rectangles:
+            if rect.visible():
+                px1, px2, py1, py2 = rect.image_coords(main_image.delta_x, main_image.delta_y)
+                img_array[py1:py2, px1:px2] = canny_image[py1:py2, px1:px2]
     else:
         img_array = canny_image.copy()
-        
-    if rect_neg.visible():
-        nx1, nx2, ny1, ny2 = rect_neg.image_coords(main_image.delta_x, main_image.delta_y)
-        img_array[ny1:ny2, nx1:nx2] = 0
+    
+    for rect in rect_neg.rectangles:
+        if rect.visible():
+            nx1, nx2, ny1, ny2 = rect.image_coords(main_image.delta_x, main_image.delta_y)
+            img_array[ny1:ny2, nx1:nx2] = 0
     
     if settings.hline_crop and hline.visible():
         max_x, max_y = settings.image_res
@@ -1977,11 +2014,11 @@ image_canvas = tk.Canvas(canvas_frame, bg='white', bd=0, relief='ridge', highlig
 main_image = MainCanvasImage(image_canvas, [frame_w, frame_h])
 overlay_image = CanvasImage(image_canvas, [frame_w, frame_h])
 image_canvas.pack(fill='both', side=tk.LEFT)
-rect_pos = RectangleSelection(image_canvas, True)
+rect_pos = RectangleHandler(image_canvas, True)
 image_canvas.bind('<Button 1>', rect_pos.on_click)
 image_canvas.bind('<B1-Motion>', rect_pos.on_drag)
 image_canvas.bind('<ButtonRelease-1>', rect_pos.on_release)
-rect_neg = RectangleSelection(image_canvas, False)
+rect_neg = RectangleHandler(image_canvas, False)
 image_canvas.bind('<Button 3>', rect_neg.on_click)
 image_canvas.bind('<B3-Motion>', rect_neg.on_drag)
 image_canvas.bind('<ButtonRelease-3>', rect_neg.on_release)
@@ -2048,7 +2085,7 @@ text_handler = logm.TextHandler(st)
 logger = logging.getLogger()
 logger.addHandler(text_handler)
 
-logger.info('DanPySelect V4.7.3 (07.02.2025)\n')
+logger.info('DanPySelect V4.8.0 (07.02.2025)\n')
 
 if __name__ == '__main__':
     root.mainloop()
